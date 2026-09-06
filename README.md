@@ -50,3 +50,7 @@ Demo responder:
 This package is a **local release candidate**, not a claim of legal/commercial certification. Before exposing it publicly, replace secrets, add a production email provider, configure HTTPS, backups, migrations, monitoring, security scanning and perform an application/security review.
 
 The application is intentionally Docker-first so the same containers can become the basis for the later AWS/EKS deployment.
+
+## Reference and release status
+
+This local release candidate was revised using the uploaded GoAlert repository as a product/behavior reference. It is intended for functional validation before AWS deployment. It is not a claim of security certification, legal compliance, or unrestricted commercial readiness.
