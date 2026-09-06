@@ -1,143 +1,92 @@
-import React, {useEffect, useState} from 'react';
-import {createRoot} from 'react-dom/client';
-import './styles.css';
+\
+import React,{useEffect,useState} from "react";
+import {createRoot} from "react-dom/client";
+import {Activity,AlertTriangle,Users,Layers,Server,Clock,ShieldCheck,Settings,Plus,RefreshCw,CheckCircle2,UserPlus,KeyRound,Trash2,X,ChevronRight} from "lucide-react";
+import "./styles.css";
 
-const api = async (path, opts={}) => {
-  const token = localStorage.getItem('token');
-  const headers = {'Content-Type':'application/json', ...(opts.headers||{})};
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const r = await fetch(path, {...opts, headers});
-  if (!r.ok) throw new Error((await r.json()).detail || 'Request failed');
-  return r.json();
-};
-
-function Login({onLogin}) {
-  const [email,setEmail]=useState('admin@miniops.example.com');
-  const [password,setPassword]=useState('admin123');
-  const [error,setError]=useState('');
-  const submit=async e=>{e.preventDefault();setError('');try{const x=await api('/api/v1/auth/login',{method:'POST',body:JSON.stringify({email,password})});localStorage.setItem('token',x.access_token);onLogin(x.user)}catch(err){setError(err.message)}};
-  return <div className="login"><div className="login-card">
-    <div className="brand"><span className="logo">M</span><div><b>MiniOps</b><small>Incident Operations</small></div></div>
-    <h1>Welcome back</h1><p className="muted">Sign in to your operations workspace.</p>
-    <form onSubmit={submit}><label>Email<input value={email} onChange={e=>setEmail(e.target.value)}/></label>
-    <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label>
-    {error&&<div className="error">{error}</div>}<button className="primary">Sign in</button></form>
-    <div className="demo">Demo: admin@miniops.example.com / admin123</div>
-  </div></div>
+const API="/api/v1";
+async function api(path,opts={}){
+  const token=localStorage.getItem("miniops_token");
+  const headers={"Content-Type":"application/json",...(opts.headers||{})};
+  if(token) headers.Authorization=`Bearer ${token}`;
+  const r=await fetch(API+path,{...opts,headers});
+  const text=await r.text(); let data={}; try{data=text?JSON.parse(text):{}}catch{data={detail:text}};
+  if(!r.ok) throw new Error(data.detail||"Request failed");
+  return data;
 }
-
-function App({user,onLogout}) {
-  const [tab,setTab]=useState('Overview');
-  const [incidents,setIncidents]=useState([]);
-  const [services,setServices]=useState([]);
-  const [teams,setTeams]=useState([]);
-  const [selected,setSelected]=useState(null);
-  const [refresh,setRefresh]=useState(0);
-
-  useEffect(()=>{
-    api('/api/v1/incidents').then(setIncidents).catch(()=>{});
-    api('/api/v1/services').then(setServices).catch(()=>{});
-    api('/api/v1/teams').then(setTeams).catch(()=>{});
-  },[refresh]);
-
-  const open=i=>api(`/api/v1/incidents/${i.id}`).then(setSelected);
-  const act=(id,path)=>api(`/api/v1/incidents/${id}/${path}`,{method:'POST'})
-    .then(()=>{setSelected(null);setRefresh(x=>x+1)});
-
-  const counts={
-    open:incidents.filter(x=>x.status!=='RESOLVED').length,
-    p1:incidents.filter(x=>x.priority==='P1'&&x.status!=='RESOLVED').length,
-    ack:incidents.filter(x=>x.status==='ACKNOWLEDGED').length,
-    resolved:incidents.filter(x=>x.status==='RESOLVED').length
-  };
-
-  return (
-    <div className="shell">
-      <aside>
-        <div className="brand side"><span className="logo">M</span><div><b>MiniOps</b><small>Operations</small></div></div>
-        {['Overview','Incidents','Services','Teams','On-Call','Escalation','Users','Audit Log'].map(x=>
-          <button className={tab===x?'nav active':'nav'} onClick={()=>setTab(x)} key={x}>{x}</button>
-        )}
-        <div className="side-bottom">
-          <div className="userbox"><div className="avatar">{user.name[0]}</div><div><b>{user.name}</b><small>{user.role}</small></div></div>
-          <button className="logout" onClick={onLogout}>Sign out</button>
-        </div>
-      </aside>
-
-      <main>
-        <header>
-          <div><h2>{tab}</h2><p className="muted">{tab==='Overview'?'Real-time operational health at a glance.':'Manage your incident operations.'}</p></div>
-          <div className="header-actions"><span className="status-dot">All systems</span><span className="avatar mini">{user.name[0]}</span></div>
-        </header>
-
-        {tab==='Overview' ? (
-          <>
-            <div className="cards">
-              <Metric label="Open incidents" value={counts.open}/>
-              <Metric label="P1 critical" value={counts.p1}/>
-              <Metric label="Acknowledged" value={counts.ack}/>
-              <Metric label="Resolved" value={counts.resolved}/>
-            </div>
-            <section className="panel">
-              <div className="panel-head"><h3>Active incidents</h3><button className="ghost" onClick={()=>setTab('Incidents')}>View all</button></div>
-              <IncidentTable data={incidents.filter(x=>x.status!=='RESOLVED').slice(0,8)} onOpen={open}/>
-            </section>
-            <div className="grid2">
-              <section className="panel">
-                <div className="panel-head"><h3>Services</h3></div>
-                {services.length ? services.map(s=>
-                  <div className="service" key={s.id}><span className="dot"></span><div><b>{s.name}</b><small>{s.description||'Operational service'}</small></div><span className="pill good">{s.status}</span></div>
-                ) : <Empty text="No services yet"/>}
-              </section>
-              <section className="panel">
-                <div className="panel-head"><h3>Teams</h3></div>
-                {teams.length ? teams.map(t=>
-                  <div className="service" key={t.id}><div className="team-icon">T</div><div><b>{t.name}</b><small>{t.description||'Response team'}</small></div></div>
-                ) : <Empty text="No teams yet"/>}
-              </section>
-            </div>
-          </>
-        ) : tab==='Incidents' ? (
-          <section className="panel"><IncidentTable data={incidents} onOpen={open}/></section>
-        ) : tab==='Services' ? (
-          <section className="panel"><List data={services} empty="No services configured."/></section>
-        ) : tab==='Teams' ? (
-          <section className="panel"><List data={teams} empty="No teams configured."/></section>
-        ) : (
-          <section className="panel"><Empty text={`${tab} management is available through the API in this local validation build; the UI modules are reserved for the next polish pass.`}/></section>
-        )}
-      </main>
-
-      {selected && (
-        <div className="drawer-bg" onClick={()=>setSelected(null)}>
-          <div className="drawer" onClick={e=>e.stopPropagation()}>
-            <button className="close" onClick={()=>setSelected(null)}>×</button>
-            <span className={`priority ${selected.incident.priority}`}>{selected.incident.priority}</span>
-            <h2>{selected.incident.title}</h2>
-            <p className="muted">{selected.incident.incident_number} · {selected.incident.status}</p>
-            <div className="actions">
-              {selected.incident.status!=='ACKNOWLEDGED'&&selected.incident.status!=='RESOLVED'&&
-                <button className="primary" onClick={()=>act(selected.incident.id,'acknowledge')}>Acknowledge</button>}
-              {selected.incident.status!=='RESOLVED'&&
-                <button className="danger" onClick={()=>act(selected.incident.id,'resolve')}>Resolve</button>}
-            </div>
-            <h3>Timeline</h3>
-            {selected.events.map(e=>
-              <div className="timeline" key={e.id}><span></span><div><b>{e.event_type.replaceAll('_',' ')}</b><small>{e.message}</small></div></div>
-            )}
-            <h3>Notes</h3>
-            {selected.notes.length ? selected.notes.map(n=><div className="note" key={n.id}>{n.body}</div>) : <Empty text="No notes yet."/>}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+function Modal({title,onClose,children}){return <div className="modal-back"><div className="modal"><div className="modal-head"><h2>{title}</h2><button className="icon" onClick={onClose}><X size={18}/></button></div>{children}</div></div>}
+function App(){
+ const [me,setMe]=useState(null); const [login,setLogin]=useState({email:"admin@miniops.example.com",password:"admin123"});
+ const [tab,setTab]=useState("incidents"); const [data,setData]=useState({incidents:[],users:[],teams:[],services:[],policies:[],schedules:[]});
+ const [selected,setSelected]=useState(null); const [modal,setModal]=useState(null); const [toast,setToast]=useState("");
+ const [forms,setForms]=useState({});
+ const nav=[
+  ["incidents","Incidents",AlertTriangle],["services","Services",Server],["teams","Teams",Layers],
+  ["users","Users",Users],["oncall","On-call",Clock],["policies","Escalation",ShieldCheck],["audit","Audit Log",Activity]
+ ];
+ async function load(){
+  try{
+   const [inc,svc,teams,policies,schedules]=await Promise.all([api("/incidents"),api("/services"),api("/teams"),api("/policies"),api("/schedules")]);
+   let users=[]; if(me?.role==="GLOBAL_ADMIN") users=await api("/users");
+   setData({incidents:inc,services:svc,teams,policies,schedules,users});
+  }catch(e){setToast(e.message)}
+ }
+ useEffect(()=>{if(me)load()},[me,tab]);
+ async function doLogin(e){e.preventDefault();try{const x=await api("/auth/login",{method:"POST",body:JSON.stringify(login)});localStorage.setItem("miniops_token",x.access_token);setMe(x.user)}catch(e){setToast(e.message)}}
+ async function act(fn){try{await fn();setToast("Saved successfully");setModal(null);await load()}catch(e){setToast(e.message)}}
+ if(!me)return <div className="login"><div className="login-card"><div className="brand"><div className="brandmark">M</div><div><b>MiniOps</b><span>Incident Operations</span></div></div><h1>Stay ahead of incidents.</h1><p>Operate services, teams and on-call response from one calm control plane.</p><form onSubmit={doLogin}><input placeholder="Email" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})}/><input placeholder="Password" type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})}/><button className="primary wide">Sign in</button></form><small>Demo: admin@miniops.example.com / admin123</small></div></div>;
+ return <div className="app">
+  <aside><div className="brand"><div className="brandmark">M</div><div><b>MiniOps</b><span>Incident Operations</span></div></div><div className="workspace"><span>WORKSPACE</span><b>Production</b></div><nav>{nav.map(([id,label,Icon])=><button className={tab===id?"active":""} onClick={()=>setTab(id)} key={id}><Icon size={18}/>{label}</button>)}</nav><div className="side-bottom"><div className="user-mini"><div className="avatar">{me.name[0]}</div><div><b>{me.name}</b><span>{me.role}</span></div></div><button className="ghost" onClick={()=>{localStorage.removeItem("miniops_token");setMe(null)}}>Sign out</button></div></aside>
+  <main><header><div><span className="eyebrow">OPERATIONS</span><h1>{nav.find(x=>x[0]===tab)?.[1]||"MiniOps"}</h1></div><div className="header-actions"><button className="secondary" onClick={load}><RefreshCw size={16}/> Refresh</button>{tab==="incidents"&&<button className="primary" onClick={()=>setModal("incident")}> <Plus size={17}/> Create incident</button>}</div></header>
+  {toast&&<div className="toast" onClick={()=>setToast("")}>{toast}</div>}
+  <section className="content">
+   {tab==="incidents"&&<Incidents data={data} selected={selected} setSelected={setSelected} setModal={setModal} act={act}/>}
+   {tab==="services"&&<Services data={data} setModal={setModal} act={act}/>}
+   {tab==="teams"&&<Teams data={data} setModal={setModal} act={act}/>}
+   {tab==="users"&&<UsersPage data={data} setModal={setModal} act={act}/>}
+   {tab==="oncall"&&<OnCall data={data} setModal={setModal} act={act}/>}
+   {tab==="policies"&&<Policies data={data} setModal={setModal} act={act}/>}
+   {tab==="audit"&&<Audit/>}
+  </section>
+  {modal==="incident"&&<Modal title="Create incident" onClose={()=>setModal(null)}><IncidentForm data={data} act={act}/></Modal>}
+  {modal==="user"&&<Modal title="Invite / create user" onClose={()=>setModal(null)}><UserForm act={act}/></Modal>}
+  {modal==="team"&&<Modal title="Create team" onClose={()=>setModal(null)}><TeamForm act={act}/></Modal>}
+  {modal==="service"&&<Modal title="Create service" onClose={()=>setModal(null)}><ServiceForm data={data} act={act}/></Modal>}
+  {modal==="key"&&<Modal title="Create routing key" onClose={()=>setModal(null)}><KeyForm serviceId={forms.serviceId} act={act}/></Modal>}
+  {modal==="schedule"&&<Modal title="Create on-call schedule" onClose={()=>setModal(null)}><ScheduleForm data={data} act={act}/></Modal>}
+  {modal==="policy"&&<Modal title="Create escalation policy" onClose={()=>setModal(null)}><PolicyForm act={act}/></Modal>}
+  {selected&&<IncidentDrawer id={selected} data={data} close={()=>setSelected(null)} act={act}/>}
+ </main></div>
 }
-
-const Metric=({label,value})=><div className="metric"><small>{label}</small><strong>{value}</strong><span>Current</span></div>;
-const Empty=({text})=><div className="empty">{text}</div>;
-function List({data,empty}){return data.length?data.map(x=><div className="list-row" key={x.id}><b>{x.name}</b><span>{x.description||''}</span></div>):<Empty text={empty}/>};
-function IncidentTable({data,onOpen}){return data.length?<div className="table"><div className="tr th"><span>Incident</span><span>Priority</span><span>Status</span><span>Service</span></div>{data.map(i=><button className="tr" key={i.id} onClick={()=>onOpen(i)}><span><b>{i.incident_number}</b><small>{i.title}</small></span><span><em className={`priority ${i.priority}`}>{i.priority}</em></span><span><em className={`state ${i.status}`}>{i.status}</em></span><span>Service #{i.service_id}</span></button>)}</div>:<Empty text="No incidents. Your operations are clear."/>}
-
-createRoot(document.getElementById('root')).render(<Root/>);
-function Root(){const [user,setUser]=useState(null);useEffect(()=>{if(localStorage.getItem('token'))api('/api/v1/auth/me').then(setUser).catch(()=>localStorage.removeItem('token'))},[]);if(!user)return <Login onLogin={setUser}/>;return <App user={user} onLogout={()=>{localStorage.removeItem('token');setUser(null)}}/>}
+function Stat({label,value,sub}){return <div className="stat"><span>{label}</span><strong>{value}</strong><small>{sub}</small></div>}
+function Incidents({data,selected,setSelected,setModal,act}){
+ const open=data.incidents.filter(i=>i.status==="OPEN").length, ack=data.incidents.filter(i=>i.status==="ACKNOWLEDGED").length;
+ return <><div className="stats"><Stat label="Open" value={open} sub="Needs attention"/><Stat label="Acknowledged" value={ack} sub="Being worked"/><Stat label="Resolved" value={data.incidents.filter(i=>i.status==="RESOLVED").length} sub="Closed incidents"/><Stat label="Services" value={data.services.length} sub="Protected services"/></div>
+ <div className="panel"><div className="panel-head"><div><h2>Incident queue</h2><p>Live operational workload</p></div></div>{data.incidents.length===0?<Empty text="No incidents yet. Create one manually or send an alert through a routing key."/>:<div className="table">{data.incidents.map(i=><button className="row" key={i.id} onClick={()=>setSelected(i.id)}><span className={`priority ${i.priority.toLowerCase()}`}>{i.priority}</span><div className="grow"><b>INC-{i.incident_number} · {i.title}</b><span>Service #{i.service_id} · {new Date(i.created_at).toLocaleString()}</span></div><span className={`status ${i.status.toLowerCase()}`}>{i.status}</span><ChevronRight size={17}/></button>)}</div>}</div></>
+}
+function Empty({text}){return <div className="empty"><Activity size={26}/><b>Nothing here yet</b><span>{text}</span></div>}
+function Services({data,setModal,act}){
+ return <div className="panel"><div className="panel-head"><div><h2>Services</h2><p>Services receive alerts and own incidents.</p></div><button className="primary" onClick={()=>setModal("service")}><Plus size={16}/> Create service</button></div>{data.services.length===0?<Empty text="Create your first service and generate a routing key."/>:<div className="cards">{data.services.map(s=><div className="card" key={s.id}><div className="card-icon"><Server size={20}/></div><div className="grow"><b>{s.name}</b><span>{s.description||"No description"}</span><small>Service ID {s.id}</small></div><button className="secondary" onClick={()=>{setModal("key");}} >Routing keys</button></div>)}</div>}</div>
+}
+function Teams({data,setModal,act}){
+ const [members,setMembers]=useState({});
+ async function view(t){try{setMembers({...members,[t.id]:await api(`/teams/${t.id}/members`)})}catch(e){}}
+ return <div className="panel"><div className="panel-head"><div><h2>Teams</h2><p>Organize responders and ownership.</p></div><button className="primary" onClick={()=>setModal("team")}><Plus size={16}/> Create team</button></div>{data.teams.length===0?<Empty text="Create a response team."/>:<div className="cards">{data.teams.map(t=><div className="card" key={t.id}><div className="card-icon"><Layers size={20}/></div><div className="grow"><b>{t.name}</b><span>{t.description||"No description"}</span>{members[t.id]&&<div className="member-list">{members[t.id].map(m=><span key={m.id}>{m.name}</span>)}</div>}</div><button className="secondary" onClick={()=>view(t)}>Members</button>{meAdmin(data)&&<button className="icon danger" onClick={()=>act(()=>api(`/teams/${t.id}`,{method:"DELETE"}))}><Trash2 size={16}/></button>}</div>)}</div>}</div>
+}
+function meAdmin(data){return true}
+function UsersPage({data,setModal,act}){
+ return <div className="panel"><div className="panel-head"><div><h2>Users</h2><p>People who can respond to incidents.</p></div><button className="primary" onClick={()=>setModal("user")}><UserPlus size={16}/> Invite user</button></div><div className="table">{data.users.map(u=><div className="row static" key={u.id}><div className="avatar sm">{u.name[0]}</div><div className="grow"><b>{u.name}</b><span>{u.email}</span></div><span className="pill">{u.role}</span><span className={u.is_active?"live":"muted"}>{u.is_active?"Active":"Disabled"}</span>{u.role!=="GLOBAL_ADMIN"&&<><button className="secondary" onClick={()=>act(()=>api(`/users/${u.id}/disable`,{method:"POST"}))}>Disable</button><button className="icon danger" onClick={()=>act(()=>api(`/users/${u.id}`,{method:"DELETE"}))}><Trash2 size={16}/></button></>}</div>)}</div></div>
+}
+function OnCall({data,setModal}){return <div className="panel"><div className="panel-head"><div><h2>On-call schedules</h2><p>Rotations and overrides for responders.</p></div><button className="primary" onClick={()=>setModal("schedule")}><Plus size={16}/> Create schedule</button></div>{data.schedules.length===0?<Empty text="Create a rotation with one or more responders."/>:<div className="cards">{data.schedules.map(s=><div className="card" key={s.id}><div className="card-icon"><Clock size={20}/></div><div className="grow"><b>{s.name}</b><span>{s.rotation_type} · {s.timezone}</span><small>{s.start_hour}:00–{s.end_hour}:00</small></div></div>)}</div>}</div>}
+function Policies({data,setModal}){return <div className="panel"><div className="panel-head"><div><h2>Escalation policies</h2><p>Define who gets paged and when.</p></div><button className="primary" onClick={()=>setModal("policy")}><Plus size={16}/> Create policy</button></div>{data.policies.length===0?<Empty text="Create a policy, then add escalation levels through the API or future policy editor."/>:<div className="cards">{data.policies.map(p=><div className="card" key={p.id}><div className="card-icon"><ShieldCheck size={20}/></div><div className="grow"><b>{p.name}</b><span>{p.description}</span></div></div>)}</div>}</div>}
+function Audit(){const [logs,setLogs]=useState([]);useEffect(()=>{api("/audit").then(setLogs).catch(()=>{})},[]);return <div className="panel"><div className="panel-head"><div><h2>Audit log</h2><p>Administrative and operational changes.</p></div></div><div className="table">{logs.map(l=><div className="row static" key={l.id}><Activity size={17}/><div className="grow"><b>{l.action}</b><span>{l.entity_type} #{l.entity_id||"—"} · {l.details||""}</span></div><small>{new Date(l.created_at).toLocaleString()}</small></div>)}</div></div>}
+function Field({label,...p}){return <label className="field"><span>{label}</span><input {...p}/></label>}
+function IncidentForm({data,act}){const [f,setF]=useState({service_id:data.services[0]?.id||"",title:"",description:"",priority:"P2"});return <form onSubmit={e=>{e.preventDefault();act(()=>api("/incidents",{method:"POST",body:JSON.stringify({...f,service_id:Number(f.service_id)})}))}}><Field label="Title" value={f.title} required onChange={e=>setF({...f,title:e.target.value})}/><label className="field"><span>Service</span><select value={f.service_id} onChange={e=>setF({...f,service_id:e.target.value})}>{data.services.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label className="field"><span>Priority</span><select value={f.priority} onChange={e=>setF({...f,priority:e.target.value})}><option>P1</option><option>P2</option><option>P3</option><option>P4</option></select></label><Field label="Description" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/><button className="primary wide">Create incident</button></form>}
+function UserForm({act}){const [f,setF]=useState({email:"",name:"",role:"RESPONDER"});return <form onSubmit={e=>{e.preventDefault();act(()=>api("/users",{method:"POST",body:JSON.stringify(f)}))}}><Field label="Full name" value={f.name} required onChange={e=>setF({...f,name:e.target.value})}/><Field label="Email" type="email" value={f.email} required onChange={e=>setF({...f,email:e.target.value})}/><label className="field"><span>Role</span><select value={f.role} onChange={e=>setF({...f,role:e.target.value})}><option>RESPONDER</option><option>USER</option><option>TEAM_ADMIN</option></select></label><button className="primary wide">Create user</button></form>}
+function TeamForm({act}){const [f,setF]=useState({name:"",description:""});return <form onSubmit={e=>{e.preventDefault();act(()=>api("/teams",{method:"POST",body:JSON.stringify(f)}))}}><Field label="Team name" value={f.name} required onChange={e=>setF({...f,name:e.target.value})}/><Field label="Description" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/><button className="primary wide">Create team</button></form>}
+function ServiceForm({data,act}){const [f,setF]=useState({name:"",description:"",owner_team_id:""});return <form onSubmit={e=>{e.preventDefault();act(()=>api("/services",{method:"POST",body:JSON.stringify({...f,owner_team_id:f.owner_team_id?Number(f.owner_team_id):null})}))}}><Field label="Service name" value={f.name} required onChange={e=>setF({...f,name:e.target.value})}/><Field label="Description" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/><label className="field"><span>Owner team</span><select value={f.owner_team_id} onChange={e=>setF({...f,owner_team_id:e.target.value})}><option value="">None</option>{data.teams.map(t=><option value={t.id} key={t.id}>{t.name}</option>)}</select></label><button className="primary wide">Create service</button></form>}
+function KeyForm({serviceId,act}){const [name,setName]=useState("Production");return <form onSubmit={e=>{e.preventDefault();act(()=>api(`/services/${serviceId}/routing-keys`,{method:"POST",body:JSON.stringify({name})}))}}><Field label="Key name" value={name} onChange={e=>setName(e.target.value)}/><p className="hint">The generated key is shown once after creation. Use it in X-Routing-Key for alert ingestion.</p><button className="primary wide"><KeyRound size={16}/> Generate routing key</button></form>}
+function ScheduleForm({data,act}){const [f,setF]=useState({name:"",timezone:"UTC",rotation_type:"WEEKLY",start_hour:9,end_hour:17,member_ids:[]});function toggle(id){setF({...f,member_ids:f.member_ids.includes(id)?f.member_ids.filter(x=>x!==id):[...f.member_ids,id]})}return <form onSubmit={e=>{e.preventDefault();act(()=>api("/schedules",{method:"POST",body:JSON.stringify(f)}))}}><Field label="Schedule name" value={f.name} required onChange={e=>setF({...f,name:e.target.value})}/><Field label="Timezone" value={f.timezone} onChange={e=>setF({...f,timezone:e.target.value})}/><label className="field"><span>Rotation</span><select value={f.rotation_type} onChange={e=>setF({...f,rotation_type:e.target.value})}><option>WEEKLY</option><option>DAILY</option></select></label><div className="checklist"><span>Responders</span>{data.users.filter(u=>u.is_active).map(u=><label key={u.id}><input type="checkbox" checked={f.member_ids.includes(u.id)} onChange={()=>toggle(u.id)}/>{u.name}</label>)}</div><button className="primary wide">Create schedule</button></form>}
+function PolicyForm({act}){const [f,setF]=useState({name:"",description:""});return <form onSubmit={e=>{e.preventDefault();act(()=>api("/policies",{method:"POST",body:JSON.stringify(f)}))}}><Field label="Policy name" value={f.name} required onChange={e=>setF({...f,name:e.target.value})}/><Field label="Description" value={f.description} onChange={e=>setF({...f,description:e.target.value})}/><button className="primary wide">Create escalation policy</button></form>}
+function IncidentDrawer({id,close,act}){const [detail,setDetail]=useState(null);const [note,setNote]=useState("");useEffect(()=>{api(`/incidents/${id}`).then(setDetail)},[id]);if(!detail)return <div className="drawer"><div className="drawer-head"><button className="icon" onClick={close}><X/></button></div><div className="empty">Loading…</div></div>;const i=detail.incident;return <div className="drawer"><div className="drawer-head"><div><span className={`priority ${i.priority.toLowerCase()}`}>{i.priority}</span><h2>INC-{i.incident_number}</h2></div><button className="icon" onClick={close}><X/></button></div><h3>{i.title}</h3><p className="description">{i.description||"No description provided."}</p><div className="drawer-actions">{i.status==="OPEN"&&<button className="secondary" onClick={()=>act(()=>api(`/incidents/${id}/acknowledge`,{method:"POST"}))}>Acknowledge</button>}{i.status!=="RESOLVED"&&<button className="primary" onClick={()=>act(()=>api(`/incidents/${id}/resolve`,{method:"POST"}))}>Resolve</button>}{i.status==="RESOLVED"&&<button className="secondary" onClick={()=>act(()=>api(`/incidents/${id}/reopen`,{method:"POST"}))}>Reopen</button>}</div><div className="timeline"><h4>Timeline</h4>{detail.events.map(e=><div className="event" key={e.id}><div className="dot"></div><div><b>{e.event_type.replaceAll("_"," ")}</b><span>{e.message}</span><small>{new Date(e.created_at).toLocaleString()}</small></div></div>)}</div><div className="notes"><h4>Notes</h4>{detail.notes.map(n=><div className="note" key={n.id}>{n.body}<small>{new Date(n.created_at).toLocaleString()}</small></div>)}<textarea placeholder="Add an incident note…" value={note} onChange={e=>setNote(e.target.value)}/><button className="secondary wide" onClick={()=>{if(note.trim())act(()=>api(`/incidents/${id}/notes`,{method:"POST",body:JSON.stringify({body:note})}).then(()=>setNote("")))}}>Add note</button></div></div>}
+createRoot(document.getElementById("root")).render(<App/>);
