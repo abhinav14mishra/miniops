@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: miniops
+      POSTGRES_USER: miniops
+      POSTGRES_PASSWORD: miniops
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U miniops -d miniops"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://miniops:miniops@db:5432/miniops
+      SECRET_KEY: change-me-local
+      CORS_ORIGINS: http://localhost:5173
+    depends_on:
+      db: {condition: service_healthy}
+    ports: ["8000:8000"]
+  web:
+    build: ./frontend
+    depends_on: [api]
+    ports: ["5173:80"]
+volumes:
+  postgres_data:
