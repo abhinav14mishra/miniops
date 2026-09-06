@@ -1,133 +1,42 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import String, Integer, Boolean, DateTime, Text, ForeignKey, UniqueConstraint, Index
+from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
-def now():
-    return datetime.now(timezone.utc)
+def now(): return datetime.now(timezone.utc)
 
 class User(Base):
-    __tablename__ = "users"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
-    name: Mapped[str] = mapped_column(String(120))
-    password_hash: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(30), default="RESPONDER")
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-
+    __tablename__='users'; id:Mapped[int]=mapped_column(primary_key=True); email:Mapped[str]=mapped_column(String(320),unique=True,index=True); name:Mapped[str]=mapped_column(String(120)); password_hash:Mapped[str]=mapped_column(String(255)); role:Mapped[str]=mapped_column(String(30),default='RESPONDER'); is_active:Mapped[bool]=mapped_column(Boolean,default=True); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
 class Team(Base):
-    __tablename__ = "teams"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), unique=True)
-    description: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-
+    __tablename__='teams'; id:Mapped[int]=mapped_column(primary_key=True); name:Mapped[str]=mapped_column(String(120),unique=True); description:Mapped[str]=mapped_column(Text,default=''); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
 class TeamMember(Base):
-    __tablename__ = "team_members"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    role: Mapped[str] = mapped_column(String(30), default="MEMBER")
-    __table_args__ = (UniqueConstraint("team_id", "user_id", name="uq_team_user"),)
-
+    __tablename__='team_members'; id:Mapped[int]=mapped_column(primary_key=True); team_id:Mapped[int]=mapped_column(ForeignKey('teams.id',ondelete='CASCADE')); user_id:Mapped[int]=mapped_column(ForeignKey('users.id',ondelete='CASCADE')); role:Mapped[str]=mapped_column(String(30),default='MEMBER'); __table_args__=(UniqueConstraint('team_id','user_id',name='uq_team_user'),)
+class Invitation(Base):
+    __tablename__='invitations'; id:Mapped[int]=mapped_column(primary_key=True); email:Mapped[str]=mapped_column(String(320)); name:Mapped[str]=mapped_column(String(120)); role:Mapped[str]=mapped_column(String(30),default='RESPONDER'); token:Mapped[str]=mapped_column(String(255),unique=True,index=True); status:Mapped[str]=mapped_column(String(20),default='PENDING'); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now); expires_at:Mapped[datetime]=mapped_column(DateTime(timezone=True))
 class Service(Base):
-    __tablename__ = "services"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), unique=True)
-    description: Mapped[str] = mapped_column(Text, default="")
-    owner_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-
+    __tablename__='services'; id:Mapped[int]=mapped_column(primary_key=True); name:Mapped[str]=mapped_column(String(120),unique=True); description:Mapped[str]=mapped_column(Text,default=''); owner_team_id:Mapped[int|None]=mapped_column(ForeignKey('teams.id',ondelete='SET NULL'),nullable=True); escalation_policy_id:Mapped[int|None]=mapped_column(ForeignKey('escalation_policies.id',ondelete='SET NULL'),nullable=True); maintenance:Mapped[bool]=mapped_column(Boolean,default=False); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
 class RoutingKey(Base):
-    __tablename__ = "routing_keys"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    service_id: Mapped[int] = mapped_column(ForeignKey("services.id", ondelete="CASCADE"))
-    name: Mapped[str] = mapped_column(String(120))
-    key: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-
+    __tablename__='routing_keys'; id:Mapped[int]=mapped_column(primary_key=True); service_id:Mapped[int]=mapped_column(ForeignKey('services.id',ondelete='CASCADE')); name:Mapped[str]=mapped_column(String(120)); key:Mapped[str]=mapped_column(String(255),unique=True,index=True); is_active:Mapped[bool]=mapped_column(Boolean,default=True); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
 class EscalationPolicy(Base):
-    __tablename__ = "escalation_policies"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), unique=True)
-    description: Mapped[str] = mapped_column(Text, default="")
-
+    __tablename__='escalation_policies'; id:Mapped[int]=mapped_column(primary_key=True); name:Mapped[str]=mapped_column(String(120),unique=True); description:Mapped[str]=mapped_column(Text,default=''); repeat_count:Mapped[int]=mapped_column(Integer,default=0); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
 class EscalationLevel(Base):
-    __tablename__ = "escalation_levels"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    policy_id: Mapped[int] = mapped_column(ForeignKey("escalation_policies.id", ondelete="CASCADE"))
-    position: Mapped[int] = mapped_column(Integer)
-    target_type: Mapped[str] = mapped_column(String(30))
-    target_id: Mapped[int] = mapped_column(Integer)
-    delay_minutes: Mapped[int] = mapped_column(Integer, default=5)
-
+    __tablename__='escalation_levels'; id:Mapped[int]=mapped_column(primary_key=True); policy_id:Mapped[int]=mapped_column(ForeignKey('escalation_policies.id',ondelete='CASCADE')); position:Mapped[int]=mapped_column(Integer); target_type:Mapped[str]=mapped_column(String(30)); target_id:Mapped[int]=mapped_column(Integer); delay_minutes:Mapped[int]=mapped_column(Integer,default=5)
 class OnCallSchedule(Base):
-    __tablename__ = "oncall_schedules"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), unique=True)
-    timezone: Mapped[str] = mapped_column(String(80), default="UTC")
-    rotation_type: Mapped[str] = mapped_column(String(30), default="WEEKLY")
-    start_hour: Mapped[int] = mapped_column(Integer, default=9)
-    end_hour: Mapped[int] = mapped_column(Integer, default=17)
-
+    __tablename__='oncall_schedules'; id:Mapped[int]=mapped_column(primary_key=True); name:Mapped[str]=mapped_column(String(120),unique=True); timezone:Mapped[str]=mapped_column(String(80),default='UTC'); rotation_type:Mapped[str]=mapped_column(String(30),default='WEEKLY'); handoff_weekday:Mapped[int]=mapped_column(Integer,default=0); handoff_hour:Mapped[int]=mapped_column(Integer,default=9); active_start_hour:Mapped[int]=mapped_column(Integer,default=0); active_end_hour:Mapped[int]=mapped_column(Integer,default=24); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
 class RotationMember(Base):
-    __tablename__ = "rotation_members"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    schedule_id: Mapped[int] = mapped_column(ForeignKey("oncall_schedules.id", ondelete="CASCADE"))
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    position: Mapped[int] = mapped_column(Integer)
-
+    __tablename__='rotation_members'; id:Mapped[int]=mapped_column(primary_key=True); schedule_id:Mapped[int]=mapped_column(ForeignKey('oncall_schedules.id',ondelete='CASCADE')); user_id:Mapped[int]=mapped_column(ForeignKey('users.id',ondelete='CASCADE')); position:Mapped[int]=mapped_column(Integer); __table_args__=(UniqueConstraint('schedule_id','user_id',name='uq_rotation_user'),)
 class Override(Base):
-    __tablename__ = "overrides"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    schedule_id: Mapped[int] = mapped_column(ForeignKey("oncall_schedules.id", ondelete="CASCADE"))
-    from_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    to_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    reason: Mapped[str] = mapped_column(Text, default="")
-
+    __tablename__='overrides'; id:Mapped[int]=mapped_column(primary_key=True); schedule_id:Mapped[int]=mapped_column(ForeignKey('oncall_schedules.id',ondelete='CASCADE')); from_user_id:Mapped[int]=mapped_column(ForeignKey('users.id')); to_user_id:Mapped[int]=mapped_column(ForeignKey('users.id')); starts_at:Mapped[datetime]=mapped_column(DateTime(timezone=True)); ends_at:Mapped[datetime]=mapped_column(DateTime(timezone=True)); reason:Mapped[str]=mapped_column(Text,default='')
 class Incident(Base):
-    __tablename__ = "incidents"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    incident_number: Mapped[int] = mapped_column(Integer, unique=True, index=True)
-    service_id: Mapped[int] = mapped_column(ForeignKey("services.id"))
-    title: Mapped[str] = mapped_column(String(255))
-    description: Mapped[str] = mapped_column(Text, default="")
-    priority: Mapped[str] = mapped_column(String(5), default="P2")
-    status: Mapped[str] = mapped_column(String(30), default="OPEN", index=True)
-    assigned_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    assigned_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id", ondelete="SET NULL"), nullable=True)
-    dedupe_key: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
+    __tablename__='incidents'; id:Mapped[int]=mapped_column(primary_key=True); incident_number:Mapped[int]=mapped_column(Integer,unique=True,index=True); service_id:Mapped[int]=mapped_column(ForeignKey('services.id')); title:Mapped[str]=mapped_column(String(255)); description:Mapped[str]=mapped_column(Text,default=''); priority:Mapped[str]=mapped_column(String(5),default='P2'); status:Mapped[str]=mapped_column(String(30),default='OPEN',index=True); assigned_user_id:Mapped[int|None]=mapped_column(ForeignKey('users.id',ondelete='SET NULL'),nullable=True); assigned_team_id:Mapped[int|None]=mapped_column(ForeignKey('teams.id',ondelete='SET NULL'),nullable=True); dedupe_key:Mapped[str|None]=mapped_column(String(255),nullable=True,index=True); escalation_policy_id:Mapped[int|None]=mapped_column(ForeignKey('escalation_policies.id',ondelete='SET NULL'),nullable=True); escalation_level:Mapped[int]=mapped_column(Integer,default=1); next_escalation_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now); acknowledged_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True); resolved_at:Mapped[datetime|None]=mapped_column(DateTime(timezone=True),nullable=True)
+    __table_args__=(Index('ix_incident_service_dedupe_open','service_id','dedupe_key','status'),)
+class Alert(Base):
+    __tablename__='alerts'; id:Mapped[int]=mapped_column(primary_key=True); service_id:Mapped[int]=mapped_column(ForeignKey('services.id')); severity:Mapped[str]=mapped_column(String(30)); title:Mapped[str]=mapped_column(String(255)); message:Mapped[str]=mapped_column(Text,default=''); source:Mapped[str]=mapped_column(String(120),default='unknown'); dedupe_key:Mapped[str|None]=mapped_column(String(255),nullable=True,index=True); payload:Mapped[str]=mapped_column(Text,default='{}'); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
 class IncidentEvent(Base):
-    __tablename__ = "incident_events"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    incident_id: Mapped[int] = mapped_column(ForeignKey("incidents.id", ondelete="CASCADE"))
-    actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    event_type: Mapped[str] = mapped_column(String(50))
-    message: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-
+    __tablename__='incident_events'; id:Mapped[int]=mapped_column(primary_key=True); incident_id:Mapped[int]=mapped_column(ForeignKey('incidents.id',ondelete='CASCADE')); actor_user_id:Mapped[int|None]=mapped_column(ForeignKey('users.id',ondelete='SET NULL'),nullable=True); event_type:Mapped[str]=mapped_column(String(50)); message:Mapped[str]=mapped_column(Text,default=''); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
 class IncidentNote(Base):
-    __tablename__ = "incident_notes"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    incident_id: Mapped[int] = mapped_column(ForeignKey("incidents.id", ondelete="CASCADE"))
-    author_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    body: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
-
+    __tablename__='incident_notes'; id:Mapped[int]=mapped_column(primary_key=True); incident_id:Mapped[int]=mapped_column(ForeignKey('incidents.id',ondelete='CASCADE')); author_user_id:Mapped[int|None]=mapped_column(ForeignKey('users.id',ondelete='SET NULL'),nullable=True); body:Mapped[str]=mapped_column(Text); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
+class NotificationRule(Base):
+    __tablename__='notification_rules'; id:Mapped[int]=mapped_column(primary_key=True); user_id:Mapped[int]=mapped_column(ForeignKey('users.id',ondelete='CASCADE')); channel:Mapped[str]=mapped_column(String(30)); destination:Mapped[str]=mapped_column(String(320)); enabled:Mapped[bool]=mapped_column(Boolean,default=True)
 class AuditLog(Base):
-    __tablename__ = "audit_logs"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    action: Mapped[str] = mapped_column(String(100))
-    entity_type: Mapped[str] = mapped_column(String(50))
-    entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    details: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    __tablename__='audit_logs'; id:Mapped[int]=mapped_column(primary_key=True); actor_user_id:Mapped[int|None]=mapped_column(ForeignKey('users.id',ondelete='SET NULL'),nullable=True); action:Mapped[str]=mapped_column(String(100)); entity_type:Mapped[str]=mapped_column(String(50)); entity_id:Mapped[int|None]=mapped_column(Integer,nullable=True); details:Mapped[str]=mapped_column(Text,default=''); created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)

@@ -28,6 +28,9 @@ services:
       SECRET_KEY: change-this-before-public-release
       CORS_ORIGINS: http://localhost:5173
       REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: miniops@localhost
     depends_on:
       db:
         condition: service_healthy
@@ -35,6 +38,20 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+
+  worker:
+    build: ./backend
+    command: ["python","-m","app.worker"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://miniops:miniops@db:5432/miniops
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: miniops@localhost
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
 
   web:
     build: ./frontend
